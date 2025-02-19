@@ -1,0 +1,121 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Game</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Guess the Word!</h1>
+
+        <!-- Word Display Area -->
+        <div id="word-frame" class="word-frame"></div>
+
+        <!-- Guessing Input -->
+        <div id="message"></div>
+        <input type="text" id="letter-input" maxlength="1">
+        <button onclick="submitGuess()">Guess</button>
+        <p>Guesses: <span id="guess-count">0</span></p>
+
+        <!-- Congratulations Popup -->
+        <div id="congratulations-popup" class="popup">
+            <h2>Congratulations! You found the correct word!</h2>
+            <button onclick="closePopup()">Close</button>
+        </div>
+
+        <!-- Trumpet Sound -->
+        <audio id="trumpet-sound" src="{% static 'audio/trumpet.mp3' %}" preload="auto"></audio>
+    </div>
+
+    <script src="{% static 'js/script.js' %}"></script>
+    <script>
+        let gameId = "{{ game_id }}";
+        let word = "{{ word }}";
+        let guessedLetters = '';
+        let guessCount = 0;
+
+        // Function to initialize the word display with blue squares
+        function updateWordDisplay() {
+            let wordDisplay = '';
+            document.getElementById('word-frame').innerHTML = ''; // Clear previous display
+
+            for (let letter of word) {
+                const square = document.createElement('div');
+                square.classList.add('letter-square');
+                if (guessedLetters.includes(letter)) {
+                    square.innerText = letter;
+                    square.style.backgroundColor = 'yellow';  // Correct guess
+                } else {
+                    square.innerText = '_';
+                    square.style.backgroundColor = 'blue';  // Unrevealed letters
+                }
+                document.getElementById('word-frame').appendChild(square);
+            }
+        }
+
+        // Function to handle letter submission
+        function submitGuess() {
+            let letter = document.getElementById('letter-input').value.toLowerCase();
+            if (!letter) return;
+
+            fetch(`/guess/${gameId}/?letter=${letter}`)
+                .then(response => response.json())
+                .then(data => {
+                    guessedLetters += letter;
+                    guessCount++;
+                    document.getElementById('guess-count').innerText = guessCount;
+                    document.getElementById('message').innerText = data.message;
+                    word = data.word; // Update word on the client side
+                    updateWordDisplay();
+
+                    if (data.message === 'You win!') {
+                        playTrumpet();
+                        showPopup();
+                    }
+                });
+
+            document.getElementById('letter-input').value = '';
+        }
+
+        // Play trumpet sound on win
+        function playTrumpet() {
+            const trumpetSound = document.getElementById('trumpet-sound');
+            trumpetSound.play();
+        }
+
+        // Show the Congratulations popup
+        function showPopup() {
+            document.getElementById('congratulations-popup').style.display = 'block';
+        }
+
+        // Close the Congratulations popup and reset the game
+        function closePopup() {
+            document.getElementById('congratulations-popup').style.display = 'none';
+            resetGame();  // Reset game after closing popup
+        }
+
+        // Reset the game state
+        function resetGame() {
+            guessedLetters = '';
+            guessCount = 0;
+            document.getElementById('guess-count').innerText = guessCount;
+            document.getElementById('message').innerText = '';
+            updateWordDisplay();
+        }
+
+        // Listen for 'Enter' key press to submit the guess
+        document.getElementById('letter-input').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                submitGuess();
+            }
+        });
+
+        // Initialize the display when the page loads
+        updateWordDisplay();
+    </script>
+</body>
+</html>
